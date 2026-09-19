@@ -55,6 +55,10 @@ docker: The term 'docker' is not recognized as a name of a cmdlet, function, scr
 git log --oneline --graph
 ```
 
+## 本周文字说明
+
+本周完成了课程仓库的初始化和开发环境检查。Java、Maven、Git 均可以在 Windows 11 中正常使用，后续可用于构建与管理项目；Docker 目前尚未安装，已记录原因和安装后的验证计划。通过梳理单体与微服务的差异，我理解到服务拆分应建立在明确业务边界之上，并且需要以可重复的验证步骤保障每次修改的质量。
+
 ## 截图清单
 
 请将以下真实截图保存到本目录，截图中应包含命令和输出：
