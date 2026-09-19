@@ -66,9 +66,10 @@ git log --oneline --graph
 已保存的真实截图如下：
 
 - `screenshots/java-version.png`：Java 版本。
+- `screenshots/maven-version.png`：Maven 版本。
 - `screenshots/git-version.png`：Git 版本。
 - `screenshots/docker-version.png`：Docker 客户端与服务端版本。
 - `screenshots/git-log.png`：Git 提交历史。
 - `screenshots/github-repository.png`：GitHub 公开仓库主页。
 
-还需要补充 Maven 版本和 Docker Compose 版本的终端截图。
+还需要补充 Docker Compose 版本的终端截图。
