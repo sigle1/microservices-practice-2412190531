@@ -19,15 +19,17 @@ OS name: "windows 11", version: "10.0", arch: "amd64"
 git version 2.53.0.windows.1
 
 > docker version
-docker: The term 'docker' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Client: Docker CLI 29.8.0 (windows/amd64)
+Server: Docker Desktop 4.91.0 (239619)
+Engine: 29.8.0 (linux/amd64)
 
 > docker compose version
-docker: The term 'docker' is not recognized as a name of a cmdlet, function, script file, or executable program.
+Docker Compose version v5.5.1
 ```
 
 ### Docker 问题记录
 
-当前系统为 Windows 11，Java、Maven 和 Git 已安装并能正常运行；Docker Desktop 尚未安装或其命令未加入系统 PATH，因此两条 Docker 命令无法执行。下一步将安装 Docker Desktop for Windows，启用 WSL 2 后重启终端，再重新执行 `docker version` 与 `docker compose version` 验证。
+当前系统为 Windows 11，Java、Maven、Git、Docker Desktop 和 Docker Compose 均已安装并能正常运行。Docker Desktop 使用 WSL 2 后端，程序和容器数据均配置在 D 盘。通过 `docker version` 已确认客户端和服务端均可正常通信，后续可用于运行课程中的容器化服务。
 
 ## 概念回答
 
@@ -61,8 +63,12 @@ git log --oneline --graph
 
 ## 截图清单
 
-请将以下真实截图保存到本目录，截图中应包含命令和输出：
+已保存的真实截图如下：
 
-- `screenshots/environment-check.png`：`java --version`、`mvn --version`、`git --version`、`docker version`、`docker compose version`。
-- `screenshots/git-log.png`：`git log --oneline --graph`。
+- `screenshots/java-version.png`：Java 版本。
+- `screenshots/git-version.png`：Git 版本。
+- `screenshots/docker-version.png`：Docker 客户端与服务端版本。
+- `screenshots/git-log.png`：Git 提交历史。
 - `screenshots/github-repository.png`：GitHub 公开仓库主页。
+
+还需要补充 Maven 版本和 Docker Compose 版本的终端截图。
