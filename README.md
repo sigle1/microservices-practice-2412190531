@@ -110,7 +110,7 @@ sequenceDiagram
 ## 仓库说明
 
 - 课程：微服务课程
-- 姓名：请填写姓名
+- 姓名：陈昊睿
 - 学号：2412190531
 - 第 2 周作业记录：[docs/homework/week-02/index.md](docs/homework/week-02/index.md)
 - `src/`：后续课程代码。
