@@ -33,5 +33,5 @@
 
 截图应展示 GitHub 中根目录 README 的实际渲染效果，提交前保存为 PNG、JPG 或 JPEG 到本目录的 `screenshots/` 文件夹。
 
-- `screenshots/readme-overview.png`：项目标题、简介、业务背景和目标用户。
-- `screenshots/readme-functions.png`：功能设计和核心流程。
+- `screenshots/readme-functions.png`：功能设计的 Mermaid 功能结构图。
+- `screenshots/readme-core-flow.png`：核心业务流程的 Mermaid 时序图。
