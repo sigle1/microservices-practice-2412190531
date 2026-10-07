@@ -114,3 +114,20 @@ sequenceDiagram
 - 学号：2412190531
 - 第 2 周作业记录：[docs/homework/week-02/index.md](docs/homework/week-02/index.md)
 - `src/`：后续课程代码。
+
+## 第 03 周：单体工程运行说明
+
+本周在 `monolith/` 中创建了“宠安心”的单体 Spring Boot 工程。运行环境要求 Java 21 与 Maven（项目包含 Maven Wrapper），使用 Spring Boot 4.0.8、Spring Web MVC 和 Actuator，默认端口为 `8080`。
+
+```bash
+cd monolith
+./mvnw test
+./mvnw spring-boot:run
+```
+
+应用启动后可验证：
+
+- 问候接口：`GET http://localhost:8080/api/hello`
+- 健康检查：`GET http://localhost:8080/actuator/health`
+
+本周仅包含启动、基础配置、运行状态接口和启动测试；尚未实现宠物档案、预约、接诊病历、收费、数据库、Service、Repository 或完整业务 API。
