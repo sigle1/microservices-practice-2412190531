@@ -131,3 +131,61 @@ cd monolith
 - 健康检查：`GET http://localhost:8080/actuator/health`
 
 本周仅包含启动、基础配置、运行状态接口和启动测试；尚未实现宠物档案、预约、接诊病历、收费、数据库、Service、Repository 或完整业务 API。
+
+## 第 04 周：宠物预约 API 与数据库
+
+第 04 周在同一个 `monolith/` 工程中实现“宠物建档 → 创建预约 → 查询预约”。应用使用 Java 21、Maven 和 Spring Boot 4.0.8；默认启动使用 H2 内存数据库，方便本地运行和自动化测试。生产式本地验证可切换到 MySQL profile。
+
+### 启动与测试
+
+```bash
+cd monolith
+./mvnw test
+./mvnw spring-boot:run
+```
+
+Windows PowerShell 可执行 `./mvnw.cmd test` 与 `./mvnw.cmd spring-boot:run`。默认地址为 `http://localhost:8080`。
+
+### API 示例
+
+先创建宠物：
+
+```bash
+curl -i -X POST http://localhost:8080/api/pets \
+  -H "Content-Type: application/json" \
+  -d '{"name":"团团","ownerName":"陈昊睿","ownerPhone":"13800000000","species":"猫"}'
+```
+
+创建预约（将 `petId` 替换为上一步返回的 id，时间需在未来）：
+
+```bash
+curl -i -X POST http://localhost:8080/api/appointments \
+  -H "Content-Type: application/json" \
+  -d '{"petId":1,"appointmentTime":"2026-12-01T10:00:00","reason":"年度体检"}'
+```
+
+还可使用 `GET /api/pets`、`GET /api/pets/{id}`、`GET /api/appointments?petId={id}` 查询数据。重复为同一宠物创建同一时段的预约会返回 `409 Conflict`。
+
+### MySQL 安装、建库与连接
+
+安装 MySQL 8.x 后创建数据库：
+
+```sql
+CREATE DATABASE pet_care DEFAULT CHARACTER SET utf8mb4;
+```
+
+设置账号密码并使用 `mysql` profile 启动。JPA 会依据实体自动建表（`ddl-auto=update`）：
+
+```bash
+MYSQL_USERNAME=root MYSQL_PASSWORD=你的密码 ./mvnw spring-boot:run -Dspring-boot.run.profiles=mysql
+```
+
+Windows PowerShell 使用：
+
+```powershell
+$env:MYSQL_USERNAME="root"
+$env:MYSQL_PASSWORD="你的密码"
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=mysql"
+```
+
+表关系、字段和约束见 [docs/database.md](docs/database.md)。当前未实现医生排班、签到/取消、病历、收费、认证授权及真实通知能力。
