@@ -189,3 +189,38 @@ $env:MYSQL_PASSWORD="你的密码"
 ```
 
 表关系、字段和约束见 [docs/database.md](docs/database.md)。当前未实现医生排班、签到/取消、病历、收费、认证授权及真实通知能力。
+
+## 第 05 周：Docker Compose 启动
+
+本项目可通过 Docker Compose 一次启动 Spring Boot 应用与 MySQL 8.4.11。Docker 构建在容器内执行 Maven Wrapper，多阶段镜像的运行阶段只包含 JRE 和可执行 JAR。
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+docker compose ps
+```
+
+Windows PowerShell：
+
+```powershell
+Copy-Item .env.example .env
+docker compose up -d --build
+docker compose ps
+```
+
+应用使用容器网络中的 `mysql` 服务名连接数据库，数据库数据保存在命名卷 `mysql_data`。查看日志与停止服务：
+
+```bash
+docker compose logs app
+docker compose down
+```
+
+不要使用 `docker compose down -v`，否则会删除用于持久化 MySQL 数据的命名卷。
+
+### 容器化接口示例
+
+```bash
+curl http://localhost:8080/actuator/health
+curl -X POST http://localhost:8080/api/pets -H "Content-Type: application/json" -d '{"name":"团团","ownerName":"陈昊睿","ownerPhone":"13800000000","species":"猫"}'
+curl http://localhost:8080/api/pets
+```

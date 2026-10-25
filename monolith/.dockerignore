@@ -1,0 +1,13 @@
+target/
+.mvn/verify-week04.log
+.idea/
+*.iml
+.git/
+.gitignore
+.env
+.env.*
+*.log
+*.pem
+*.key
+docker-compose*.yml
+README.md
