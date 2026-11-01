@@ -2,12 +2,13 @@ services:
   mysql:
     image: mysql:8.4.11
     environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_this_root_password}
+      USER_DB_PASSWORD: ${USER_DB_PASSWORD:-user_service_password}
+      PET_DB_PASSWORD: ${PET_DB_PASSWORD:-pet_service_password}
+      APPOINTMENT_DB_PASSWORD: ${APPOINTMENT_DB_PASSWORD:-appointment_service_password}
     volumes:
-      - mysql_data:/var/lib/mysql
+      - microservices_mysql_data:/var/lib/mysql
+      - ./scripts/init-microservices.sh:/docker-entrypoint-initdb.d/init-microservices.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 5s
@@ -17,25 +18,58 @@ services:
     networks:
       - petcare
 
-  app:
-    build:
-      context: ./monolith
-    image: pet-care-monolith:week05
+  user-service:
+    build: ./services/user-service
     environment:
-      SPRING_PROFILES_ACTIVE: mysql
-      MYSQL_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-      MYSQL_USERNAME: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_URL: jdbc:mysql://mysql:3306/user_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      MYSQL_USERNAME: user_app
+      MYSQL_PASSWORD: ${USER_DB_PASSWORD:-user_service_password}
+      MYSQL_DRIVER: com.mysql.cj.jdbc.Driver
     ports:
-      - "${APP_PORT:-8080}:8080"
+      - "8081:8080"
     depends_on:
       mysql:
         condition: service_healthy
     networks:
       - petcare
 
+  pet-service:
+    build: ./services/pet-service
+    environment:
+      MYSQL_URL: jdbc:mysql://mysql:3306/pet_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      MYSQL_USERNAME: pet_app
+      MYSQL_PASSWORD: ${PET_DB_PASSWORD:-pet_service_password}
+      MYSQL_DRIVER: com.mysql.cj.jdbc.Driver
+    ports:
+      - "8082:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - petcare
+
+  appointment-service:
+    build: ./services/appointment-service
+    environment:
+      MYSQL_URL: jdbc:mysql://mysql:3306/appointment_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      MYSQL_USERNAME: appointment_app
+      MYSQL_PASSWORD: ${APPOINTMENT_DB_PASSWORD:-appointment_service_password}
+      MYSQL_DRIVER: com.mysql.cj.jdbc.Driver
+      PET_SERVICE_URL: http://pet-service:8080
+      PET_SERVICE_CONNECT_TIMEOUT: 2s
+      PET_SERVICE_READ_TIMEOUT: 3s
+    ports:
+      - "8083:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      pet-service:
+        condition: service_started
+    networks:
+      - petcare
+
 volumes:
-  mysql_data:
+  microservices_mysql_data:
 
 networks:
   petcare:

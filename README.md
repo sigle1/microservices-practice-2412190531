@@ -224,3 +224,35 @@ curl http://localhost:8080/actuator/health
 curl -X POST http://localhost:8080/api/pets -H "Content-Type: application/json" -d '{"name":"团团","ownerName":"陈昊睿","ownerPhone":"13800000000","species":"猫"}'
 curl http://localhost:8080/api/pets
 ```
+
+## 第 06 周：微服务拆分与本地编排
+
+单体版本继续保留在 `monolith/`；拆分后的独立 Spring Boot 工程位于 `services/`：user-service、pet-service、appointment-service。服务分别使用宿主机端口 8081、8082、8083；每个服务均有独立数据库账号和数据表。服务边界与调用图见 [docs/microservices-design.md](docs/microservices-design.md)。
+
+### 启动、测试与健康检查
+
+复制环境变量模板后，在仓库根目录启动全部服务：
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+docker compose ps
+bash scripts/smoke-test.sh
+```
+
+Windows PowerShell 中可使用 `Copy-Item .env.example .env`，并在 Git Bash 中执行 `bash scripts/smoke-test.sh`。独立测试可在每个服务目录执行 `mvn test`；若使用 Maven Wrapper，可使用相应的 `mvnw.cmd test`。
+
+### 微服务 API 示例
+
+```bash
+# 创建主人（user-service）
+curl -i -X POST http://localhost:8081/api/users -H "Content-Type: application/json" -d '{"name":"陈昊睿","phone":"13800000000"}'
+
+# 创建宠物（pet-service）；ownerId 为上一步返回的 id
+curl -i -X POST http://localhost:8082/api/pets -H "Content-Type: application/json" -d '{"ownerId":1,"name":"团团","species":"猫"}'
+
+# 创建预约（appointment-service 会通过 HTTP 调用 pet-service 校验 petId）
+curl -i -X POST http://localhost:8083/api/appointments -H "Content-Type: application/json" -d '{"petId":1,"appointmentTime":"2026-12-01T10:00:00","reason":"年度体检"}'
+```
+
+健康检查地址为 `http://localhost:8081/actuator/health`、`http://localhost:8082/actuator/health` 与 `http://localhost:8083/actuator/health`。Compose 网络中 appointment-service 使用 `http://pet-service:8080`，而非 `localhost`，访问 pet-service。

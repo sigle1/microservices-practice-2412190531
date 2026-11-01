@@ -1,0 +1,19 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: pet-service
+  datasource:
+    url: "${MYSQL_URL:jdbc:h2:mem:pet_service;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}"
+    username: "${MYSQL_USERNAME:sa}"
+    password: "${MYSQL_PASSWORD:}"
+    driver-class-name: "${MYSQL_DRIVER:org.h2.Driver}"
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
