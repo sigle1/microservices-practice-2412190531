@@ -255,4 +255,104 @@ curl -i -X POST http://localhost:8082/api/pets -H "Content-Type: application/jso
 curl -i -X POST http://localhost:8083/api/appointments -H "Content-Type: application/json" -d '{"petId":1,"appointmentTime":"2026-12-01T10:00:00","reason":"年度体检"}'
 ```
 
-健康检查地址为 `http://localhost:8081/actuator/health`、`http://localhost:8082/actuator/health` 与 `http://localhost:8083/actuator/health`。Compose 网络中 appointment-service 使用 `http://pet-service:8080`，而非 `localhost`，访问 pet-service。
+健康检查地址为 `http://localhost:8081/actuator/health`、`http://localhost:8082/actuator/health` 与 `http://localhost:8083/actuator/health`。第 06 周时 appointment-service 通过 Compose DNS 固定地址访问 pet-service；第 07 周起已改为从 Nacos 服务发现获取实例地址，旧地址配置已删除。
+
+## 第 07 周：Nacos 注册发现与上下线验证
+
+第 07 周在现有 `services/` 工程上接入 Nacos 3.2.4，不重新创建工程。三个服务通过课程统一 Spring Cloud / Spring Cloud Alibaba BOM 引入 Discovery Starter，使用同一命名空间和 `PERSONAL_GROUP` 分组注册；预约创建流程通过 `DiscoveryClient.getInstances("pet-service")` 每次动态获取实例地址，再调用原有 `GET /api/pets/{id}` 完成宠物校验。完整验证过程见 [docs/homework/week-07/index.md](docs/homework/week-07/index.md)。
+
+### 端口与配置
+
+| 组件 | 本机地址 | 容器端口 | 说明 |
+| --- | --- | --- | --- |
+| Nacos 控制台 | <http://localhost:18080/> | 8080 | 只绑定 `127.0.0.1`，不要使用旧的 `8848/nacos` 控制台地址 |
+| Nacos HTTP API | `http://localhost:8848` | 8848 | 服务端 OpenAPI |
+| Nacos SDK gRPC | `localhost:9848` | 9848 | Java 客户端通信端口 |
+| user-service | <http://localhost:8081> | 8080 | `spring.application.name=user-service` |
+| pet-service | <http://localhost:8082> | 8080 | `spring.application.name=pet-service` |
+| appointment-service | <http://localhost:8083> | 8080 | `spring.application.name=appointment-service` |
+
+Nacos 控制台端口、HTTP 端口和 gRPC 端口可分别用 `NACOS_CONSOLE_PORT`、`NACOS_HTTP_PORT`、`NACOS_GRPC_PORT` 覆盖。业务服务宿主机端口可用 `USER_PORT`、`PET_PORT`、`APPOINTMENT_PORT` 覆盖，容器内仍监听 8080。Nacos 数据保存在命名卷 `nacos_data`，MySQL 数据保存在 `microservices_mysql_data`。
+
+### 首次启动 Nacos
+
+真实密码、Token 和身份值只写入被 `.gitignore` 忽略的根目录 `.env`，仓库只提交 `.env.example`。
+
+```bash
+cp .env.example .env
+# 编辑 .env，至少替换 NACOS_PASSWORD，并生成 Token 与身份值：
+openssl rand -base64 32   # 填入 NACOS_AUTH_TOKEN
+openssl rand -hex 16      # 填入 NACOS_AUTH_IDENTITY_VALUE
+docker compose up -d nacos
+docker compose ps nacos
+```
+
+等待 Nacos 容器启动（未初始化管理员前 `health: starting` 属正常）后打开 <http://localhost:18080/>，首次使用 `nacos` 管理员账号初始化密码，密码必须与 `.env` 中的 `NACOS_PASSWORD` 一致。初始化完成后，控制台的鉴权健康检查转为 `healthy`，再启动业务服务，避免服务因管理员尚未就绪而注册失败：
+
+```bash
+docker compose up -d --build
+docker compose ps
+bash scripts/smoke-test.sh
+```
+
+`screenshots` 和文档中不得出现真实密码或 Token；Nacos 仅绑定本机回环地址，不暴露到公网。
+
+### 注册与分组
+
+- 命名空间：默认 `public`，即 `.env` 中 `NACOS_NAMESPACE` 留空；若创建自定义命名空间，必须填写 Namespace ID，而不是显示名称。
+- 分组：`PERSONAL_GROUP`，由 `NACOS_GROUP` 配置，三个服务和调用方保持一致。
+- 注册地址：容器内固定使用 `nacos:8848`；本机直接运行 Maven 时默认 `localhost:8848`。
+- 鉴权：`NACOS_USERNAME`、`NACOS_PASSWORD` 由环境变量传入；Discovery Starter 版本由课程 BOM 统一管理，本周不引入 Config Starter。
+
+在控制台“服务管理 → 服务列表”中选择上述命名空间和 `PERSONAL_GROUP`，应看到 user-service、pet-service、appointment-service 及其实际容器 IP 和业务端口。
+
+### 服务发现业务调用
+
+预约服务不再保存 `PET_SERVICE_URL`。`PetClient` 每次创建预约前调用 `DiscoveryClient.getInstances("pet-service")`，取当前实例 URI 后请求 `/api/pets/{id}`；实例列表为空时返回 503，远端宠物不存在仍返回 404，失败时不会写入预约记录。HTTP 连接和读取超时仍由 `PET_SERVICE_CONNECT_TIMEOUT`、`PET_SERVICE_READ_TIMEOUT` 控制。
+
+```bash
+# 创建宠物后，用返回的 id 创建预约；appointment-service 会先发现 pet-service
+curl -i -X POST http://localhost:8082/api/pets \
+  -H "Content-Type: application/json" \
+  -d '{"ownerId":1,"name":"团团","species":"猫"}'
+
+curl -i -X POST http://localhost:8083/api/appointments \
+  -H "Content-Type: application/json" \
+  -d '{"petId":1,"appointmentTime":"2026-12-01T10:00:00","reason":"年度体检"}'
+```
+
+### 下线与恢复验证
+
+```bash
+# 1. 正常调用成功，记录预约数据
+curl -i -X POST http://localhost:8083/api/appointments \
+  -H "Content-Type: application/json" \
+  -d '{"petId":1,"appointmentTime":"2026-12-02T10:00:00","reason":"服务发现验证"}'
+
+# 2. 停止被调用的 pet-service，等待 Nacos 实例列表移除后再次请求
+docker compose stop pet-service
+curl -i -X POST http://localhost:8083/api/appointments \
+  -H "Content-Type: application/json" \
+  -d '{"petId":1,"appointmentTime":"2026-12-03T10:00:00","reason":"下线验证"}'
+
+# 3. 恢复 pet-service，等待重新注册和健康检查通过后重试同一请求
+docker compose start pet-service
+sleep 20
+curl -i -X POST http://localhost:8083/api/appointments \
+  -H "Content-Type: application/json" \
+  -d '{"petId":1,"appointmentTime":"2026-12-03T10:00:00","reason":"下线验证"}'
+```
+
+预期：正常请求返回 201；pet-service 下线后返回 503，且 appointment_db 不新增记录；pet-service 恢复并重新注册后，同一请求返回 201。appointment-service 自身的 `/actuator/health` 在 pet-service 下线期间仍可能是 UP，因为这表示应用自身健康，不等于依赖服务健康，也不代表 Nacos 会因 Actuator DOWN 自动摘除实例。
+
+### 服务测试
+
+测试关闭 Nacos 自动注册，使用 H2 和模拟的 `DiscoveryClient`/远程响应，不依赖真实 Nacos 或 MySQL：
+
+```bash
+cd services/user-service && mvn test
+cd ../pet-service && mvn test
+cd ../appointment-service && mvn test
+```
+
+appointment-service 的测试覆盖当前实例地址每次重新获取、实例列表为空返回 503 且不写库、远端 404 保留业务语义，以及正常通过发现实例创建预约。

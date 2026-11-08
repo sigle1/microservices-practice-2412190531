@@ -14,18 +14,22 @@
 
 ## 调用关系
 
-预约创建流程为：客户端请求 appointment-service；预约服务先使用 `RestTemplate` 调用 pet-service 的 `GET /api/pets/{id}` 校验宠物存在；宠物存在后才在 `appointment_db` 写入预约。宠物不存在返回 404；宠物服务超时或不可用返回 503，预约服务不会写入本地数据。
+预约创建流程为：客户端请求 appointment-service；预约服务先从 Nacos 的 `PERSONAL_GROUP` 分组发现 pet-service 的当前实例，再使用该实例 URI 调用 `GET /api/pets/{id}` 校验宠物；宠物存在后才在 `appointment_db` 写入预约。实例列表为空或连接失败返回 503；宠物不存在返回 404；失败时预约服务不会写入本地数据。
 
 ```mermaid
 flowchart LR
     C[客户端] --> U[user-service :8081]
     C --> P[pet-service :8082]
     C --> A[appointment-service :8083]
-    A -- RestTemplate GET /api/pets/{id} --> P
+    A -- "DiscoveryClient.getInstances('pet-service')" --> N[Nacos :8848 / PERSONAL_GROUP]
+    N -. 返回实例 URI .-> A
+    A -- "GET /api/pets/{id}" --> P
     U --> UDB[(user_db / app_users)]
     P --> PDB[(pet_db / pets)]
     A --> ADB[(appointment_db / appointments)]
 ```
+
+第 07 周新增 Nacos 3.2.4 作为注册中心，三个服务使用与本设计一致的服务名注册到同一命名空间和 `PERSONAL_GROUP` 分组。appointment-service 不再保存 pet-service 的固定 HTTP 地址，而是在每次创建预约时调用 `DiscoveryClient.getInstances("pet-service")`，取当前实例 URI 后访问原有业务路径。
 
 ## 设计结论
 
